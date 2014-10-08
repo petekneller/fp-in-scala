@@ -43,7 +43,6 @@ class CandyMachineTest extends FunSuite {
     def sequence[S, A](fs: List[State[S, A]]): State[S, List[A]] = {
       fs.foldLeft(unit[S, List[A]](Nil))((acc: State[S, List[A]], f: State[S, A]) => map2(acc, f)(_ :+ _))
     }
-
   }
 
   sealed trait Input
@@ -53,16 +52,29 @@ class CandyMachineTest extends FunSuite {
   case object Turn extends Input
 
   case class Machine(locked: Boolean, candies: Int, coins: Int)
+  
+  case class Simulation(machine: Machine, recordedInputs: List[Input])
+  
+  object Simulation {
+    def transitionMachine(input: Input)(f: Machine => Machine): State[Simulation, Unit] =
+      State.modify(s => s.copy(
+        machine = f(s.machine),
+        recordedInputs = s.recordedInputs :+ input)
+      )
 
-  def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] = {
-    def singleTransition(input: Input): State[Machine, Unit] = {
+    def summarizeMachine: State[Simulation, (Int, Int)] =
+      State.get[Simulation].map(s => (s.machine.candies, s.machine.coins))
+  }
+
+  def simulateMachine(inputs: List[Input]): State[Simulation, (Int, Int)] = {
+    def singleTransition(input: Input): State[Simulation, Unit] = {
       input match {
-        case Coin => State.modify {
+        case Coin => Simulation.transitionMachine(input) {
           (m: Machine) =>
             if (m.locked && m.candies > 0) m.copy(locked = false, coins = m.coins + 1)
             else m
         }
-        case Turn => State.modify {
+        case Turn => Simulation.transitionMachine(input) {
           (m: Machine) =>
             if (m.locked) m
             else m.copy(candies = m.candies - 1, locked = true)
@@ -74,30 +86,36 @@ class CandyMachineTest extends FunSuite {
 
     for {
       _ <- endS
-      s <- State.get
-    } yield (s.candies, s.coins)
+      summary <- Simulation.summarizeMachine
+    } yield summary
+  }
+
+  def runSimFor(inputs: List[Input], initialMachine: Machine): (Int, Int, Machine) = {
+    val simulation = simulateMachine(inputs)
+    val ((candies, coins), Simulation(endMachine, recordedInputs)) = simulation.run(Simulation(initialMachine, Nil))
+    Predef.assert(recordedInputs != Nil)
+    (candies, coins, endMachine)
   }
 
   test("locked -> {coin inserted} -> unlocked") {
 
-    val simulation = simulateMachine(List(Coin))
-    val ((candies, coins), machine) = simulation.run(Machine(true, 1, 0))
-    assert(machine.locked === false)
+    val (candies, coins, endMachine) = runSimFor(List(Coin), Machine(true, 1, 0))
+
+    assert(endMachine.locked === false)
     assert(coins === 1)
   }
 
   test("unlocked -> {coin inserted} -> unlocked (doesn't keep coin)") {
 
-    val simulation = simulateMachine(List(Coin))
-    val ((candies, coins), machine) = simulation.run(Machine(false, 1, 0))
+    val (candies, coins, machine) = runSimFor(List(Coin), Machine(false, 1, 0))
     assert(machine.locked === false)
     assert(coins === 0)
   }
 
   test("locked -> {knob turned} -> locked") {
 
-    val simulation = simulateMachine(List(Turn))
-    val ((candies, coins), machine) = simulation.run(Machine(true, 1, 0))
+    val (candies, coins, machine) = runSimFor(List(Turn), Machine(true, 1, 0))
+
     assert(machine.locked === true)
     assert(candies === 1)
     assert(coins === 0)
@@ -105,8 +123,8 @@ class CandyMachineTest extends FunSuite {
 
   test("* -> {* if out of candy} -> does nothing") {
 
-    val simulation = simulateMachine(List(Coin))
-    val ((candies, coins), machine) = simulation.run(Machine(true, 0, 0))
+    val (candies, coins, machine) = runSimFor(List(Coin), Machine(true, 0, 0))
+
     assert(machine.locked === true)
     assert(candies === 0)
     assert(coins === 0)
@@ -114,8 +132,8 @@ class CandyMachineTest extends FunSuite {
 
   test("unlocked -> {knob turned} -> locked (and dispenses candy)") {
 
-    val simulation = simulateMachine(List(Turn))
-    val ((candies, coins), machine) = simulation.run(Machine(false, 1, 1))
+    val (candies, coins, machine) = runSimFor(List(Turn), Machine(false, 1, 1))
+
     assert(machine.locked === true)
     assert(candies === 0)
     assert(coins === 1)
@@ -124,8 +142,8 @@ class CandyMachineTest extends FunSuite {
   test("everything") {
 
     val inputs = List(Coin, Turn, Coin, Turn, Coin, Turn, Coin, Turn)
-    val simulation = simulateMachine(inputs)
-    val ((candies, coins), machine) = simulation.run(Machine(true, 5, 10))
+    val (candies, coins, _) = runSimFor(inputs, Machine(true, 5, 10))
+
     assert(candies === 1)
     assert(coins === 14)
   }
