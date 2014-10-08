@@ -8,7 +8,7 @@ class CandyMachineTest extends FunSuite {
     val simulation = CandyMachine.simulateMachine(inputs)
     val ((candies, coins), Simulation(endMachine, recordedInputs)) =
         simulation.run(Simulation(initialMachine, Nil)).run
-    
+
     Predef.assert(recordedInputs != Nil)
     (candies, coins, endMachine)
   }
