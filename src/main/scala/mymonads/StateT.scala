@@ -1,17 +1,15 @@
 package mymonads
 
-case class StateT[S, M[_] <: Monad[A, M] : MonadOps, A](run: S => M[(A, S)]) {
+case class StateT[S, M[X] <: Monad[X, M] : MonadOps, A](run: S => M[(A, S)]) {
   val innerOps = implicitly[MonadOps[M]]
 
   def map[B](f: A => B): StateT[S, M, B] = StateT {
     s =>
       val innerA: M[(A, S)] = run(s)
       val innerB: M[(B, S)] = innerA.flatMap {
-        (x: (A, S)) =>
-        val (a: A, s2: S) = x
+        case (a, s2) =>
         val b = f(a)
-        val r: (B, S) = (b, s2)
-        innerOps.unit(r)
+        innerOps.unit((b, s2))
       }
       innerB
   }
@@ -28,7 +26,8 @@ case class StateT[S, M[_] <: Monad[A, M] : MonadOps, A](run: S => M[(A, S)]) {
   }
 }
 
-class StateTOps[S, M[X] <: Monad[X, M]](implicit innerOps: MonadOps[M]) {
+class StateTOps[S, M[X] <: Monad[X, M]](innerOps: MonadOps[M]) {
+  implicit val io = innerOps
 
   def unit[A](a: A): StateT[S, M, A] = StateT(s => innerOps.unit((a, s)))
 
