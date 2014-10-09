@@ -1,5 +1,10 @@
 package mymonads
 
+// my thoughts with this trait were that StateT should extend it, and StateTOps return it, so
+// uses of StateT and StateTOps didnt need to know about eh concrete type
+// but im not sure about how to deal with losing the type info for the inner monad
+trait StateMonad[S, A] extends Monad[A, ({ type L[X] = StateMonad[S, X] })#L]
+
 case class StateT[S, M[X] <: Monad[X, M] : MonadOps, A](run: S => M[(A, S)]) {
   val innerOps = implicitly[MonadOps[M]]
 
