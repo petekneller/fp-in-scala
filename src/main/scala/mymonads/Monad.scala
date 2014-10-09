@@ -7,6 +7,6 @@ trait Monad[A, Self[X] <: Monad[X, Self]] {
   def flatMap[B](f: A => Self[B]): Self[B]
 }
 
-trait MonadOps[M[_]] {
+trait MonadOps[M[X] <: Monad[X, M]] {
   def unit[A](a: A): M[A]
 }

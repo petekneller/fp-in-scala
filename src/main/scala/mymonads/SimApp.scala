@@ -2,11 +2,11 @@ package mymonads
 
 object SimApp {
 
-  val monadOps = new StateTOps[SimulationState, Identity](new IdentityOps)
+  val monadOps: StateTOps[SimulationState, ({ type L[X] = StateT[SimulationState, Identity, X] })#L] = new StateTOpsImpl[SimulationState, Identity](new IdentityOps)
 
   def runFor(initialMachine: MachineState, inputs: List[Input]): (Int, Int, MachineState) = {
 
-    val simulation = new Simulation[Identity](monadOps)
+    val simulation = new Simulation[({ type L[X] = StateT[SimulationState, Identity, X] })#L](monadOps)
     val finalState = simulation.runCandyMachine(initialMachine, inputs)
 
     val summaryM: StateT[SimulationState, Identity, (Int, Int)] = simulation.summaryOfMachine(finalState)

@@ -2,18 +2,18 @@ package mymonads
 
 case class SimulationState(machine: MachineState, recordedInputs: List[Input])
 
-class Simulation[M[X] <: Monad[X, M]](stateOps: StateTOps[SimulationState, M]) {
+class Simulation[M[X] <: StateMonad[SimulationState, X, M]](stateOps: StateTOps[SimulationState, M]) {
 
-  private def transitionState(f: MachineState => MachineState): StateT[SimulationState, M, Unit] =
+  private def transitionState(f: MachineState => MachineState): M[Unit] =
     stateOps.modify(s => s.copy(
       machine = f(s.machine)
     ))
 
-  def runCandyMachine(initialCandyMachine: MachineState, inputs: List[Input]): StateT[SimulationState, M, List[Unit]] = {
+  def runCandyMachine(initialCandyMachine: MachineState, inputs: List[Input]): M[List[Unit]] = {
 
     val candyMachine = new CandyMachine
 
-    val transitions: List[StateT[SimulationState, M, Unit]] = inputs.map{ input =>
+    val transitions: List[M[Unit]] = inputs.map{ input =>
       for {
         _ <- stateOps.modify{ s => s.copy(recordedInputs = s.recordedInputs :+ input) }
         _ <- transitionState(candyMachine.runForInput(input))
@@ -24,7 +24,7 @@ class Simulation[M[X] <: Monad[X, M]](stateOps: StateTOps[SimulationState, M]) {
     finalState
   }
 
-  def summaryOfMachine(simulation: StateT[SimulationState, M, _]): StateT[SimulationState, M, (Int, Int)] = {
+  def summaryOfMachine(simulation: M[_]): M[(Int, Int)] = {
     for {
       _ <- simulation
       summary <- stateOps.get.map(s => (s.machine.candies, s.machine.coins))

@@ -3,9 +3,9 @@ package mymonads
 // my thoughts with this trait were that StateT should extend it, and StateTOps return it, so
 // uses of StateT and StateTOps didnt need to know about eh concrete type
 // but im not sure about how to deal with losing the type info for the inner monad
-trait StateMonad[S, A] extends Monad[A, ({ type L[X] = StateMonad[S, X] })#L]
+trait StateMonad[S, A, Self[X] <: StateMonad[S, X, Self]] extends Monad[A, ({ type L[X] = StateMonad[S, X, Self] })#L]
 
-case class StateT[S, M[X] <: Monad[X, M] : MonadOps, A](run: S => M[(A, S)]) {
+case class StateT[S, M[X] <: Monad[X, M] : MonadOps, A](run: S => M[(A, S)]) extends StateMonad[S, A, ({ type L[Y] = StateT[S, M, Y] })#L] {
   val innerOps = implicitly[MonadOps[M]]
 
   def map[B](f: A => B): StateT[S, M, B] = StateT {
@@ -31,14 +31,28 @@ case class StateT[S, M[X] <: Monad[X, M] : MonadOps, A](run: S => M[(A, S)]) {
   }
 }
 
-class StateTOps[S, M[X] <: Monad[X, M]](innerOps: MonadOps[M]) {
+trait StateTOps[S, M[X] <: StateMonad[S, X, M]] {
+  def unit[A](a: A): M[A]
+
+  def get: M[S]
+
+  def set[S](s: S): M[Unit]
+
+  def modify(f: S => S): M[Unit]
+
+  def map2[A, B, C](sa: M[A], sb: M[B])(f: (A, B) => C): M[C]
+
+  def sequence[A](fs: List[M[A]]): M[List[A]]
+}
+
+class StateTOpsImpl[S, M[X] <: Monad[X, M]](innerOps: MonadOps[M]) extends StateTOps[S, ({ type L[X] = StateT[S, M, X] })#L] {
   implicit val io = innerOps
 
   def unit[A](a: A): StateT[S, M, A] = StateT(s => innerOps.unit((a, s)))
 
   def get: StateT[S, M, S] = StateT(s => innerOps.unit((s, s)))
 
-  def set[A](s: A): StateT[A, M, Unit] = StateT(_ => innerOps.unit(((), s)))
+  def set[S](s: S): StateT[S, M, Unit] = StateT(_ => innerOps.unit(((), s)))
 
   def modify(f: S => S): StateT[S, M, Unit] = for {
     oldS <- get
