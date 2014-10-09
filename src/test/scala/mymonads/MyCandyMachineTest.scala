@@ -5,7 +5,7 @@ import org.scalatest.FunSuite
 class MyCandyMachineTest extends FunSuite {
 
   def runSimFor(inputs: List[Input], initialMachine: MachineState): (Int, Int, MachineState) = {
-    Simulation.runCandyMachine(initialMachine, inputs)
+    SimApp.runFor(initialMachine, inputs)
   }
 
   test("locked -> {coin inserted} -> unlocked") {
