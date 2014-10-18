@@ -1,23 +1,11 @@
 package scalazmonads
 
 import org.scalatest.FunSuite
-import scalaz.State
+import scalaz._
+import scalaz.std.list.listInstance
+import scalaz.Writer._
 
 class CandyMachineTest extends FunSuite {
-
-  object MonadOps {
-
-    def map2[S, A, B, C](sa: State[S, A], sb: State[S, B])(f: (A, B) => C): State[S, C] = State{
-      (s: S) =>
-        val (s2, a) = sa.run(s)
-        val (s3, b) = sb.run(s2)
-        (s3, f(a, b))
-    }
-
-    def sequence[S, A](fs: List[State[S, A]]): State[S, List[A]] = {
-      fs.foldLeft(State.state[S, List[A]](Nil))((acc: State[S, List[A]], f: State[S, A]) => map2(acc, f)(_ :+ _))
-    }
-  }
 
   sealed trait Input
   case object Coin extends Input
@@ -26,20 +14,22 @@ class CandyMachineTest extends FunSuite {
   case class Machine(locked: Boolean, candies: Int, coins: Int)
   
   case class Simulation(machine: Machine, recordedInputs: List[Input])
+
+  type WriterTState[A] = WriterT[({type l[X] = State[Simulation, X]})#l, List[Input], A]
   
   object Simulation {
-    def transitionMachine(input: Input)(f: Machine => Machine): State[Simulation, Unit] =
-      State.modify(s => s.copy(
+    def transitionMachine(input: Input)(f: Machine => Machine): WriterTState[Unit] =
+      MonadState[({type l[S, A] = WriterT[({type l[B] = State[S, B]})#l, List[Input], A]})#l, Simulation].modify(s => s.copy(
         machine = f(s.machine),
         recordedInputs = s.recordedInputs :+ input)
       )
 
-    def summarizeMachine: State[Simulation, (Int, Int)] =
-      State.get[Simulation].map(s => (s.machine.candies, s.machine.coins))
+    def summarizeMachine: WriterTState[(Int, Int)] =
+      MonadState[({type l[S, A] = WriterT[({type l[B] = State[S, B]})#l, List[Input], A]})#l, Simulation].get.map(s => (s.machine.candies, s.machine.coins))
   }
 
-  def simulateMachine(inputs: List[Input]): State[Simulation, (Int, Int)] = {
-    def singleTransition(input: Input): State[Simulation, Unit] = {
+  def simulateMachine(inputs: List[Input]): WriterTState[(Int, Int)] = {
+    def singleTransition(input: Input): WriterTState[Unit] = {
       input match {
         case Coin => Simulation.transitionMachine(input) {
           (m: Machine) =>
@@ -54,7 +44,7 @@ class CandyMachineTest extends FunSuite {
       }
     }
 
-    val endS = MonadOps.sequence(inputs.map(singleTransition))
+    val endS = Traverse[List].sequence[WriterTState, Unit](inputs.map(singleTransition))
 
     for {
       _ <- endS
@@ -64,7 +54,7 @@ class CandyMachineTest extends FunSuite {
 
   def runSimFor(inputs: List[Input], initialMachine: Machine): (Int, Int, Machine) = {
     val simulation = simulateMachine(inputs)
-    val (Simulation(endMachine, recordedInputs), (candies, coins)) = simulation.run(Simulation(initialMachine, Nil))
+    val (Simulation(endMachine, _), (recordedInputs, (candies, coins))) = simulation.run(Simulation(initialMachine, Nil))
     Predef.assert(recordedInputs != Nil)
     (candies, coins, endMachine)
   }
