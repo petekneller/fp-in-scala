@@ -1,12 +1,12 @@
 package mymonads_typeclass
 
-trait Monad[A, Self[X] <: Monad[X, Self]] {
 
-  def map[B](f: A => B): Self[B]
 
-  def flatMap[B](f: A => Self[B]): Self[B]
-}
-
-trait MonadOps[M[X] <: Monad[X, M]] {
+trait MonadOps[M[_]] {
   def unit[A](a: A): M[A]
+
+  def flatMap[A, B](m: M[A])(f: A => M[B]): M[B]
+
+  def map[A, B](m: M[A])(f: A => B): M[B]
+
 }
