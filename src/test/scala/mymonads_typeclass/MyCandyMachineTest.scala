@@ -1,11 +1,11 @@
-package mymonads_subtyping
+package mymonads_typeclass
 
 import org.scalatest.FunSuite
 
 class MyCandyMachineTest extends FunSuite {
 
   def runSimFor(inputs: List[Input], initialMachine: MachineState): (Int, Int, MachineState) = {
-//    SimApp.runFor(initialMachine, inputs)
+    SimApp.runFor(initialMachine, inputs)
     null
   }
 
