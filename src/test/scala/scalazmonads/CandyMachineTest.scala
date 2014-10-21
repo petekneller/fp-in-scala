@@ -17,46 +17,47 @@ class CandyMachineTest extends FunSuite {
 
   type WriterTState[A] = WriterT[({type l[X] = State[Simulation, X]})#l, List[Input], A]
   
-  object Simulation {
-    def transitionMachine(input: Input)(f: Machine => Machine): WriterTState[Unit] =
-      MonadState[({type l[S, A] = WriterT[({type l[B] = State[S, B]})#l, List[Input], A]})#l, Simulation].modify(s => s.copy(
-        machine = f(s.machine),
-        recordedInputs = s.recordedInputs :+ input)
-      )
-
-    def summarizeMachine: WriterTState[(Int, Int)] =
-      MonadState[({type l[S, A] = WriterT[({type l[B] = State[S, B]})#l, List[Input], A]})#l, Simulation].get.map(s => (s.machine.candies, s.machine.coins))
-  }
-
-  def simulateMachine(inputs: List[Input]): WriterTState[(Int, Int)] = {
-    def singleTransition(input: Input): WriterTState[Unit] = {
-      input match {
-        case Coin => Simulation.transitionMachine(input) {
-          (m: Machine) =>
-            if (m.locked && m.candies > 0) m.copy(locked = false, coins = m.coins + 1)
-            else m
-        }
-        case Turn => Simulation.transitionMachine(input) {
-          (m: Machine) =>
-            if (m.locked) m
-            else m.copy(candies = m.candies - 1, locked = true)
-        }
-      }
-    }
-
-    val endS = Traverse[List].sequence[WriterTState, Unit](inputs.map(singleTransition))
-
-    for {
-      _ <- endS
-      summary <- Simulation.summarizeMachine
-    } yield summary
-  }
+//  object Simulation {
+//    def transitionMachine(input: Input)(f: Machine => Machine): WriterTState[Unit] =
+//      MonadState[({type l[S, A] = WriterT[({type l[B] = State[S, B]})#l, List[Input], A]})#l, Simulation].modify(s => s.copy(
+//        machine = f(s.machine),
+//        recordedInputs = s.recordedInputs :+ input)
+//      )
+//
+//    def summarizeMachine: WriterTState[(Int, Int)] =
+//      MonadState[({type l[S, A] = WriterT[({type l[B] = State[S, B]})#l, List[Input], A]})#l, Simulation].get.map(s => (s.machine.candies, s.machine.coins))
+//  }
+//
+//  def simulateMachine(inputs: List[Input]): WriterTState[(Int, Int)] = {
+//    def singleTransition(input: Input): WriterTState[Unit] = {
+//      input match {
+//        case Coin => Simulation.transitionMachine(input) {
+//          (m: Machine) =>
+//            if (m.locked && m.candies > 0) m.copy(locked = false, coins = m.coins + 1)
+//            else m
+//        }
+//        case Turn => Simulation.transitionMachine(input) {
+//          (m: Machine) =>
+//            if (m.locked) m
+//            else m.copy(candies = m.candies - 1, locked = true)
+//        }
+//      }
+//    }
+//
+//    val endS = Traverse[List].sequence[WriterTState, Unit](inputs.map(singleTransition))
+//
+//    for {
+//      _ <- endS
+//      summary <- Simulation.summarizeMachine
+//    } yield summary
+//  }
 
   def runSimFor(inputs: List[Input], initialMachine: Machine): (Int, Int, Machine) = {
-    val simulation = simulateMachine(inputs)
-    val (Simulation(endMachine, _), (recordedInputs, (candies, coins))) = simulation.run(Simulation(initialMachine, Nil))
-    Predef.assert(recordedInputs != Nil)
-    (candies, coins, endMachine)
+//    val simulation = simulateMachine(inputs)
+//    val (Simulation(endMachine, _), (recordedInputs, (candies, coins))) = simulation.run(Simulation(initialMachine, Nil))
+//    Predef.assert(recordedInputs != Nil)
+//    (candies, coins, endMachine)
+    ???
   }
 
   test("locked -> {coin inserted} -> unlocked") {
