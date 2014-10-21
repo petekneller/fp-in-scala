@@ -1,4 +1,4 @@
-package mymonads
+package mymonads_subtyping
 
 trait Monad[A, Self[X] <: Monad[X, Self]] {
 

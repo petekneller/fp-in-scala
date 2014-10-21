@@ -1,4 +1,4 @@
-package mymonads
+package mymonads_subtyping
 
 case class Identity[A](run: A) extends Monad[A, Identity] {
 

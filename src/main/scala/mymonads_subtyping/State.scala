@@ -1,4 +1,4 @@
-package mymonads
+package mymonads_subtyping
 
 case class State[S, +A](run: S => (A, S)) {
 

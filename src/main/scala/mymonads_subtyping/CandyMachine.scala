@@ -1,4 +1,4 @@
-package mymonads
+package mymonads_subtyping
 
 sealed trait Input
 case object Coin extends Input
