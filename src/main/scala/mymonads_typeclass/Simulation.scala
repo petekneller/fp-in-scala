@@ -2,34 +2,34 @@ package mymonads_typeclass
 
 case class SimulationState(machine: MachineState, recordedInputs: List[Input])
 
-class Simulation {
+class Simulation[T[_,_]](stateMonad: StateMonad[SimulationState, T]) {
 
-  val stateOps = new StateTOps[SimulationState, Identity](new IdentityOps)
+  import stateMonad.monadImplicit
 
-  private def transitionState(f: MachineState => MachineState): StateT[SimulationState, Identity, Unit] =
-    stateOps.modify(s => s.copy(
+  private def transitionState(f: MachineState => MachineState): T[SimulationState, Unit] =
+    stateMonad.modify(s => s.copy(
       machine = f(s.machine)
     ))
 
-  def runCandyMachine(initialCandyMachine: MachineState, inputs: List[Input]): StateT[SimulationState, Identity, List[Unit]] = {
+  def runCandyMachine(initialCandyMachine: MachineState, inputs: List[Input]): T[SimulationState, List[Unit]] = {
 
     val candyMachine = new CandyMachine
 
-    val transitions: List[StateT[SimulationState, Identity, Unit]] = inputs.map{ input =>
+    val transitions: List[T[SimulationState, Unit]] = inputs.map{ input =>
       for {
-        _ <- stateOps.modify{ s => s.copy(recordedInputs = s.recordedInputs :+ input) }
+        _ <- stateMonad.modify{ s => s.copy(recordedInputs = s.recordedInputs :+ input) }
         _ <- transitionState(candyMachine.runForInput(input))
       } yield ()
     }
 
-    val finalState = stateOps.sequence(transitions)
+    val finalState = stateMonad.sequence(transitions)
     finalState
   }
 
-  def summaryOfMachine(simulation: StateT[SimulationState, Identity, _]): StateT[SimulationState, Identity, (Int, Int)] = {
+  def summaryOfMachine(simulation: T[SimulationState, _]): T[SimulationState, (Int, Int)] = {
     for {
       _ <- simulation
-      summary <- stateOps.get.map(s => (s.machine.candies, s.machine.coins))
+      summary <- stateMonad.get.map(s => (s.machine.candies, s.machine.coins))
     } yield summary
   }
 

@@ -4,7 +4,8 @@ object SimApp {
 
   def runFor(initialMachine: MachineState, inputs: List[Input]): (Int, Int, MachineState) = {
 
-    val simulation = new Simulation
+    val stateOps = new StateTOps[SimulationState, Identity](new IdentityOps)
+    val simulation = new Simulation[({ type L[S, A] = StateT[S, Identity, A]})#L](stateOps)
     val finalState = simulation.runCandyMachine(initialMachine, inputs)
 
     val summaryM = simulation.summaryOfMachine(finalState)

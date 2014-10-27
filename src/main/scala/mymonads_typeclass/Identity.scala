@@ -1,6 +1,6 @@
 package mymonads_typeclass
 
-case class Identity[A](run: A) {
+case class Identity[A](run: A) extends Monad[Identity, A] {
 
   def map[B](f: A => B): Identity[B] = Identity(f(run))
 
@@ -16,4 +16,5 @@ class IdentityOps extends MonadOps[Identity] {
 
   def map[A, B](m: Identity[A])(f: A => B): Identity[B] = m.map(f)
 
+  implicit def monadImplicit[A](m: Identity[A]): Monad[Identity, A] = m
 }
