@@ -2,25 +2,25 @@ package mymonads_typeclass
 
 case class StateT[S, M[_], A](run: S => M[(S, A)])
 
-trait StateMonad[S, M[_, _]] extends MonadOps[({ type L[X] = M[S, X] })#L] {
-  def get: M[S, S]
+trait StateMonad[S, M[_]] extends MonadOps[M] {
+  def get: M[S]
 
-  def set(s: S): M[S, Unit]
+  def set(s: S): M[Unit]
 
-  def modify(f: S => S): M[S, Unit]
+  def modify(f: S => S): M[Unit]
 
-  def map2[A, B, C](sa: M[S, A], sb: M[S, B])(f: (A, B) => C): M[S, C] =
+  def map2[A, B, C](sa: M[A], sb: M[B])(f: (A, B) => C): M[C] =
     for {
       a <- sa
       b <- sb
     } yield f(a, b)
 
-  def sequence[A](fs: List[M[S, A]]): M[S, List[A]] = {
-    fs.foldLeft(unit[List[A]](Nil))((acc: M[S, List[A]], f: M[S, A]) => map2(acc, f)(_ :+ _))
+  def sequence[A](fs: List[M[A]]): M[List[A]] = {
+    fs.foldLeft(unit[List[A]](Nil))((acc: M[List[A]], f: M[A]) => map2(acc, f)(_ :+ _))
   }
 }
 
-class StateTOps[S, M[_]](innerOps: MonadOps[M]) extends StateMonad[S, ({ type L[X, Y] = StateT[X, M, Y] })#L] {
+class StateTOps[S, M[_]](innerOps: MonadOps[M]) extends StateMonad[S, ({ type L[X] = StateT[S, M, X] })#L] {
   self =>
 
   /*  MonadOps */

@@ -6,7 +6,7 @@ object SimApp {
 
     val stateOps = new StateTOps[SimulationState, Identity](new IdentityOps)
 
-    val simulation = new Simulation[({ type L[S, A] = StateT[S, Identity, A]})#L](stateOps)
+    val simulation = new Simulation[({ type L[A] = StateT[SimulationState, Identity, A]})#L](stateOps)
 
     val finalState = simulation.runCandyMachine(initialMachine, inputs)
     val summaryM = simulation.summaryOfMachine(finalState)
