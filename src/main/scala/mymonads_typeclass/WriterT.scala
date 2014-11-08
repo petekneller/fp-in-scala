@@ -2,12 +2,17 @@ package mymonads_typeclass
 
 case class WriterT[W, M[_], A](run: (List[W] => M[(List[W], A)]))
 
-class WriterTOps[W, M[_]](innerOps: MonadOps[M]) extends MonadOps[({ type L[X] = WriterT[W, M, X] })#L] {
+trait WriterMonad[W, M[_]] extends MonadOps[M] {
+
+  def write(w: W): M[Unit]
+}
+
+class WriterTOps[W, M[_]](innerOps: MonadOps[M]) extends WriterMonad[W, ({ type L[X] = WriterT[W, M, X] })#L] {
   self =>
 
-  override def unit[A](a: A): WriterT[W, M, A] = WriterT{ w => innerOps.unit((w, a)) }
+  def unit[A](a: A): WriterT[W, M, A] = WriterT{ w => innerOps.unit((w, a)) }
 
-  override def flatMap[A, B](m: WriterT[W, M, A])(f: (A) => WriterT[W, M, B]): WriterT[W, M, B] = WriterT{
+  def flatMap[A, B](m: WriterT[W, M, A])(f: (A) => WriterT[W, M, B]): WriterT[W, M, B] = WriterT{
     w =>
       val ima = m.run(w)
       val imb = innerOps.flatMap(ima){
@@ -19,11 +24,16 @@ class WriterTOps[W, M[_]](innerOps: MonadOps[M]) extends MonadOps[({ type L[X] =
       imb
   }
 
-  override def map[A, B](m: WriterT[W, M, A])(f: (A) => B): WriterT[W, M, B] = flatMap(m)(a => unit(f(a)))
+  def map[A, B](m: WriterT[W, M, A])(f: (A) => B): WriterT[W, M, B] = flatMap(m)(a => unit(f(a)))
 
-  override implicit def monadImplicit[A](m: WriterT[W, M, A]): Monad[({type L[X] = WriterT[W, M, X]})#L, A] = new Monad[({type L[X] = WriterT[W, M, X]})#L, A] {
+  implicit def monadImplicit[A](m: WriterT[W, M, A]): Monad[({type L[X] = WriterT[W, M, X]})#L, A] = new Monad[({type L[X] = WriterT[W, M, X]})#L, A] {
     override def map[B](f: (A) => B): WriterT[W, M, B] = self.map(m)(f)
     override def flatMap[B](f: (A) => WriterT[W, M, B]): WriterT[W, M, B] = self.flatMap(m)(f)
+  }
+
+  def write(w: W): WriterT[W, M, Unit] = WriterT{
+    ws =>
+      innerOps.unit((w :: ws, ()))
   }
 
 }

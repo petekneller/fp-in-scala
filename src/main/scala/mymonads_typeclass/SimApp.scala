@@ -9,7 +9,7 @@ object SimApp {
     val writerOps = new WriterTOps[Input, ({ type L[A] = StateT[SimulationState, Identity, A]})#L](stateOps)
     val writerStateMonad = WriterTOps.toStateMonad[SimulationState, Input, ({ type L[A] = StateT[SimulationState, Identity, A]})#L](writerOps, stateOps)
 
-    val simulation = new Simulation[({ type G[B] = WriterT[Input, ({ type L[A] = StateT[SimulationState, Identity, A]})#L, B]})#G](writerStateMonad)
+    val simulation = new Simulation[({ type G[B] = WriterT[Input, ({ type L[A] = StateT[SimulationState, Identity, A]})#L, B]})#G](writerStateMonad, writerOps)
 
     val finalState = simulation.runCandyMachine(initialMachine, inputs)
     val summaryM = simulation.summaryOfMachine(finalState)
