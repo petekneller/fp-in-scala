@@ -1,30 +1,6 @@
 package mymonads_typeclass
 
-case class StateT[S, M[_]: MonadOps, A](run: S => M[(S, A)]) {
-  val innerOps = implicitly[MonadOps[M]]
-
-  def map[B](f: A => B): StateT[S, M, B] = StateT{
-    (s1: S) =>
-      val ima = run(s1)
-      val imb = innerOps.map(ima){
-        case (s2: S, a: A) =>
-          val b = f(a)
-          (s2, b)
-      }
-      imb
-  }
-
-  def flatMap[B](f: A => StateT[S, M, B]): StateT[S, M, B] = StateT{
-    (s1: S) =>
-      val ima = run(s1)
-      val imb = innerOps.flatMap(ima){
-        case (s2: S, a: A) =>
-          val smb = f(a)
-          smb.run(s2)
-      }
-      imb
-  }
-}
+case class StateT[S, M[_], A](run: S => M[(S, A)])
 
 trait StateMonad[S, M[_, _]] extends MonadOps[({ type L[X] = M[S, X] })#L] {
   def unit[A](a: A): M[S, A]
@@ -40,19 +16,36 @@ trait StateMonad[S, M[_, _]] extends MonadOps[({ type L[X] = M[S, X] })#L] {
   def sequence[A](fs: List[M[S, A]]): M[S, List[A]]
 }
 
-class StateTOps[S, M[_]](innerOps: MonadOps[M]) extends StateMonad[S, ({ type L[X, Y] = StateT[X, M, Y] })#L] {
-  private implicit val iOps = innerOps
+class StateTOps[S, M[_]](innerOps: MonadOps[M]) extends StateMonad[S, ({ type L[X, Y] = StateT[X, M, Y] })#L] { self =>
 
   /*  MonadOps */
   def unit[A](a: A): StateT[S, M, A] = StateT{ s => innerOps.unit((s, a)) }
 
-  def flatMap[A, B](m: StateT[S, M, A])(f: A => StateT[S, M, B]): StateT[S, M, B] = m.flatMap(f)
+  def flatMap[A, B](m: StateT[S, M, A])(f: A => StateT[S, M, B]): StateT[S, M, B] = StateT{
+    (s1: S) =>
+      val ima = m.run(s1)
+      val imb = innerOps.flatMap(ima){
+        case (s2: S, a: A) =>
+          val smb = f(a)
+          smb.run(s2)
+      }
+      imb
+  }
 
-  def map[A, B](m: StateT[S, M, A])(f: A => B): StateT[S, M, B] = m.map(f)
+  def map[A, B](m: StateT[S, M, A])(f: A => B): StateT[S, M, B] = StateT{
+    (s1: S) =>
+      val ima = m.run(s1)
+      val imb = innerOps.map(ima){
+        case (s2: S, a: A) =>
+          val b = f(a)
+          (s2, b)
+      }
+      imb
+  }
 
   implicit def monadImplicit[A](m: StateT[S, M, A]): Monad[({ type L[X] = StateT[S, M, X] })#L, A] = new Monad[({ type L[X] = StateT[S, M, X] })#L, A] {
-    override def map[B](f: (A) => B): StateT[S, M, B] = m.map(f)
-    override def flatMap[B](f: (A) => StateT[S, M, B]): StateT[S, M, B] = m.flatMap(f)
+    override def map[B](f: (A) => B): StateT[S, M, B] = self.map(m)(f)
+    override def flatMap[B](f: (A) => StateT[S, M, B]): StateT[S, M, B] = self.flatMap(m)(f)
   }
 
   /* StateMonad */
