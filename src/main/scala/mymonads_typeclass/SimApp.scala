@@ -14,8 +14,8 @@ object SimApp {
     val finalState = simulation.runCandyMachine(initialMachine, inputs)
     val summaryM = simulation.summaryOfMachine(finalState)
 
-    val (SimulationState(finalMachineState, recordedInputs), (recordedInputs2, (candies, coins))) = summaryM.run(List.empty).run(simulation.initialState(initialMachine)).run
-    Predef.assert(recordedInputs != Nil)
+    val (SimulationState(finalMachineState), (recordedInputs2, (candies, coins))) = summaryM.run(List.empty).run(simulation.initialState(initialMachine)).run
+    Predef.assert(recordedInputs2 != Nil)
 
     (candies, coins, finalMachineState)
   }

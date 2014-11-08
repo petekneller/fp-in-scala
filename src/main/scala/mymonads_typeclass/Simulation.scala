@@ -1,6 +1,6 @@
 package mymonads_typeclass
 
-case class SimulationState(machine: MachineState, recordedInputs: List[Input])
+case class SimulationState(machine: MachineState)
 
 class Simulation[T[_]](stateMonad: StateMonad[SimulationState, T], writerMonad: WriterMonad[Input, T]) {
 
@@ -17,7 +17,6 @@ class Simulation[T[_]](stateMonad: StateMonad[SimulationState, T], writerMonad: 
 
     val transitions: List[T[Unit]] = inputs.map{ input =>
       for {
-        _ <- stateMonad.modify{ s => s.copy(recordedInputs = s.recordedInputs :+ input) }
         _ <- writerMonad.write(input)
         _ <- transitionState(candyMachine.runForInput(input))
       } yield ()
@@ -34,5 +33,5 @@ class Simulation[T[_]](stateMonad: StateMonad[SimulationState, T], writerMonad: 
     } yield summary
   }
 
-  def initialState(initialMachineState: MachineState): SimulationState = SimulationState(initialMachineState, Nil)
+  def initialState(initialMachineState: MachineState): SimulationState = SimulationState(initialMachineState)
 }
