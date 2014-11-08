@@ -4,12 +4,16 @@ object SimApp {
 
   def runFor(initialMachine: MachineState, inputs: List[Input]): (Int, Int, MachineState) = {
 
-    val identityOps = new IdentityOps
-    val stateOps = new StateTOps[SimulationState, Identity](identityOps)
-    val writerOps = new WriterTOps[Input, ({ type L[A] = StateT[SimulationState, Identity, A]})#L](stateOps)
-    val writerStateMonad = WriterTOps.toStateMonad[SimulationState, Input, ({ type L[A] = StateT[SimulationState, Identity, A]})#L](writerOps, stateOps)
+    type M1[X] = Identity[X]
+    type M2[X] = StateT[SimulationState, M1, X]
+    type M3[X] = WriterT[Input, M2, X]
 
-    val simulation = new Simulation[({ type G[B] = WriterT[Input, ({ type L[A] = StateT[SimulationState, Identity, A]})#L, B]})#G](writerStateMonad, writerOps)
+    val identityOps = new IdentityOps
+    val stateOps = new StateTOps[SimulationState, M1](identityOps)
+    val writerOps = new WriterTOps[Input, M2](stateOps)
+    val writerStateMonad = WriterTOps.toStateMonad[SimulationState, Input, M2](writerOps, stateOps)
+
+    val simulation = new Simulation[M3](writerStateMonad, writerOps)
 
     val finalState = simulation.runCandyMachine(initialMachine, inputs)
     val summaryM = simulation.summaryOfMachine(finalState)
