@@ -50,7 +50,10 @@ class StateTOps[S, M[_]](innerOps: MonadOps[M]) extends StateMonad[S, ({ type L[
 
   def map[A, B](m: StateT[S, M, A])(f: A => B): StateT[S, M, B] = m.map(f)
 
-  implicit def monadImplicit[A](m: StateT[S, M, A]): Monad[({ type L[X] = StateT[S, M, X] })#L, A] = m
+  implicit def monadImplicit[A](m: StateT[S, M, A]): Monad[({ type L[X] = StateT[S, M, X] })#L, A] = new Monad[({ type L[X] = StateT[S, M, X] })#L, A] {
+    override def map[B](f: (A) => B): StateT[S, M, B] = m.map(f)
+    override def flatMap[B](f: (A) => StateT[S, M, B]): StateT[S, M, B] = m.flatMap(f)
+  }
 
   /* StateMonad */
   def get: StateT[S, M, S] = StateT{ s => innerOps.unit((s, s)) }
