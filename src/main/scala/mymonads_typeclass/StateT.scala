@@ -3,8 +3,6 @@ package mymonads_typeclass
 case class StateT[S, M[_], A](run: S => M[(S, A)])
 
 trait StateMonad[S, M[_, _]] extends MonadOps[({ type L[X] = M[S, X] })#L] {
-  def unit[A](a: A): M[S, A]
-
   def get: M[S, S]
 
   def set(s: S): M[S, Unit]
@@ -22,7 +20,8 @@ trait StateMonad[S, M[_, _]] extends MonadOps[({ type L[X] = M[S, X] })#L] {
   }
 }
 
-class StateTOps[S, M[_]](innerOps: MonadOps[M]) extends StateMonad[S, ({ type L[X, Y] = StateT[X, M, Y] })#L] { self =>
+class StateTOps[S, M[_]](innerOps: MonadOps[M]) extends StateMonad[S, ({ type L[X, Y] = StateT[X, M, Y] })#L] {
+  self =>
 
   /*  MonadOps */
   def unit[A](a: A): StateT[S, M, A] = StateT{ s => innerOps.unit((s, a)) }
