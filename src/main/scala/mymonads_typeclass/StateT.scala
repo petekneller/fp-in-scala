@@ -11,9 +11,15 @@ trait StateMonad[S, M[_, _]] extends MonadOps[({ type L[X] = M[S, X] })#L] {
 
   def modify(f: S => S): M[S, Unit]
 
-  def map2[A, B, C](sa: M[S, A], sb: M[S, B])(f: (A, B) => C): M[S, C]
+  def map2[A, B, C](sa: M[S, A], sb: M[S, B])(f: (A, B) => C): M[S, C] =
+    for {
+      a <- sa
+      b <- sb
+    } yield f(a, b)
 
-  def sequence[A](fs: List[M[S, A]]): M[S, List[A]]
+  def sequence[A](fs: List[M[S, A]]): M[S, List[A]] = {
+    fs.foldLeft(unit[List[A]](Nil))((acc: M[S, List[A]], f: M[S, A]) => map2(acc, f)(_ :+ _))
+  }
 }
 
 class StateTOps[S, M[_]](innerOps: MonadOps[M]) extends StateMonad[S, ({ type L[X, Y] = StateT[X, M, Y] })#L] { self =>
@@ -58,15 +64,5 @@ class StateTOps[S, M[_]](innerOps: MonadOps[M]) extends StateMonad[S, ({ type L[
     newS = f(oldS)
     _ <- set(newS)
   } yield ()
-
-  def map2[A, B, C](sa: StateT[S, M, A], sb: StateT[S, M, B])(f: (A, B) => C): StateT[S, M, C] =
-    for {
-      a <- sa
-      b <- sb
-    } yield f(a, b)
-
-  def sequence[A](fs: List[StateT[S, M, A]]): StateT[S, M, List[A]] = {
-    fs.foldLeft(unit[List[A]](Nil))((acc: StateT[S, M, List[A]], f: StateT[S, M, A]) => map2(acc, f)(_ :+ _))
-  }
 
 }
