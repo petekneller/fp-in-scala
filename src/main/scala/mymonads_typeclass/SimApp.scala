@@ -12,7 +12,7 @@ object SimApp {
     val writerOps = new WriterTOps[Input, M1](identityOps)
     val stateOps = new StateTOps[SimulationState, M2](writerOps)
 
-    val stateWriterMonad = StateTOps.toWriterMonad[Input, SimulationState, M2](stateOps, writerOps)
+    val stateWriterMonad = WriterTOps.toWriterMonad[Input, M2, M3](stateOps, writerOps)
 
     val simulation = new Simulation[M3](stateOps, stateWriterMonad)
 

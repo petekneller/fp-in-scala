@@ -16,3 +16,7 @@ trait MonadOps[M[_]] {
 
   implicit def monadImplicit[A](m: M[A]): Monad[M, A]
 }
+
+trait MonadTrans[IM[_], OM[_]] extends MonadOps[OM] {
+  def lift[A](m: IM[A]): OM[A]
+}

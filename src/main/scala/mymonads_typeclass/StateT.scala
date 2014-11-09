@@ -20,7 +20,7 @@ trait StateMonad[S, M[_]] extends MonadOps[M] {
   }
 }
 
-class StateTOps[S, M[_]](innerOps: MonadOps[M]) extends StateMonad[S, ({ type L[X] = StateT[S, M, X] })#L] {
+class StateTOps[S, M[_]](innerOps: MonadOps[M]) extends StateMonad[S, ({ type L[X] = StateT[S, M, X] })#L] with MonadTrans[M, ({ type L[X] = StateT[S, M, X] })#L] {
   self =>
 
   /*  MonadOps */
@@ -63,22 +63,30 @@ class StateTOps[S, M[_]](innerOps: MonadOps[M]) extends StateMonad[S, ({ type L[
     newS = f(oldS)
     _ <- set(newS)
   } yield ()
+
+  /* MonadTrans */
+  def lift[A](m: M[A]): StateT[S, M, A] = StateT{ s => innerOps.flatMap(m){ a => innerOps.unit((s, a)) } }
 }
 
 object StateTOps {
 
-  def toWriterMonad[W, S, M[_]](stateTOps: StateTOps[S, M], innerWriter: WriterMonad[W,  M]): WriterMonad[W, ({ type L[X] = StateT[S, M, X] })#L] = new WriterMonad[W, ({ type L[X] = StateT[S, M, X] })#L] {
+  def toStateMonad[S, IM[_], OM[_]](outerOps: MonadTrans[IM, OM], innerState: StateMonad[S, IM]): StateMonad[S, OM] = new StateMonad[S, OM] {
 
     /* MonadOps */
-    override def flatMap[A, B](m: StateT[S, M, A])(f: (A) => StateT[S, M, B]): StateT[S, M, B] = stateTOps.flatMap(m)(f)
+    override def unit[A](a: A): OM[A] = outerOps.unit(a)
 
-    override def unit[A](a: A): StateT[S, M, A] = stateTOps.unit(a)
+    override def flatMap[A, B](m: OM[A])(f: (A) => OM[B]): OM[B] = outerOps.flatMap(m)(f)
 
-    override def map[A, B](m: StateT[S, M, A])(f: (A) => B): StateT[S, M, B] = stateTOps.map(m)(f)
+    override def map[A, B](m: OM[A])(f: (A) => B): OM[B] = outerOps.map(m)(f)
 
-    override implicit def monadImplicit[A](m: StateT[S, M, A]): Monad[({type L[X] = StateT[S, M, X]})#L, A] = stateTOps.monadImplicit(m)
+    override implicit def monadImplicit[A](m: OM[A]): Monad[OM, A] = outerOps.monadImplicit(m)
 
-    /* WriterMonad */
-    override def write(w: W): StateT[S, M, Unit] = StateT{ s => innerWriter.flatMap(innerWriter.write(w)){ a => innerWriter.unit((s, a)) }}
+    /* StateMonad */
+    override def get: OM[S] = outerOps.lift(innerState.get)
+
+    override def modify(f: (S) => S): OM[Unit] = outerOps.lift(innerState.modify(f))
+
+    override def set(s: S): OM[Unit] = outerOps.lift(innerState.set(s))
   }
+
 }
