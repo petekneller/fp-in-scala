@@ -63,5 +63,22 @@ class StateTOps[S, M[_]](innerOps: MonadOps[M]) extends StateMonad[S, ({ type L[
     newS = f(oldS)
     _ <- set(newS)
   } yield ()
+}
 
+object StateTOps {
+
+  def toWriterMonad[W, S, M[_]](stateTOps: StateTOps[S, M], innerWriter: WriterMonad[W,  M]): WriterMonad[W, ({ type L[X] = StateT[S, M, X] })#L] = new WriterMonad[W, ({ type L[X] = StateT[S, M, X] })#L] {
+
+    /* MonadOps */
+    override def flatMap[A, B](m: StateT[S, M, A])(f: (A) => StateT[S, M, B]): StateT[S, M, B] = stateTOps.flatMap(m)(f)
+
+    override def unit[A](a: A): StateT[S, M, A] = stateTOps.unit(a)
+
+    override def map[A, B](m: StateT[S, M, A])(f: (A) => B): StateT[S, M, B] = stateTOps.map(m)(f)
+
+    override implicit def monadImplicit[A](m: StateT[S, M, A]): Monad[({type L[X] = StateT[S, M, X]})#L, A] = stateTOps.monadImplicit(m)
+
+    /* WriterMonad */
+    override def write(w: W): StateT[S, M, Unit] = StateT{ s => innerWriter.flatMap(innerWriter.write(w)){ a => innerWriter.unit((s, a)) }}
+  }
 }
