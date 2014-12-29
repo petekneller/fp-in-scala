@@ -1,4 +1,6 @@
 target/
 .idea
 *.iml
+.ensime
+.ensime_cache/
 
