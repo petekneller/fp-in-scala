@@ -88,4 +88,8 @@ class MyTrampolineTests extends FunSuite with Matchers {
     run(t) should equal(13)
   }
 
+  // TODO
+  //   whats the stack depth of my interpreter? can I make it tail call recursive?
+  //   what's the proper formulation of trampolining?
+
 }
