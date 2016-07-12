@@ -11,7 +11,7 @@ class MyTrampolineTests extends FunSuite with Matchers {
   val f2 = (a: Int) => f1(a) + 4
   val f3 = (a: Int, b: Int) => f1(a) + f2(b)
 
-  test("too much function composition blows the stack") {
+  ignore("too much function composition blows the stack") {
 
 
     val N = 10 // 1000000
@@ -21,7 +21,7 @@ class MyTrampolineTests extends FunSuite with Matchers {
     def run_(f: Int => Int, v: Int): Int = f(v)
 
     // too large an N this will blow the stack
-    run_(fx, 2) should equal(2)
+    run_(fx, 2) should equal(4096)
   }
 
   // A first crack at turning function calls into interpreters
@@ -78,7 +78,7 @@ class MyTrampolineTests extends FunSuite with Matchers {
     run_(fx(2)) should equal(5)
   }
 
-  test("arbitrary depth function calls") {
+  ignore("arbitrary depth function calls") {
     trait Tramp[+A, +B, C]
     case class Return[A](cont: () => A) extends Tramp[Nothing, Nothing, A]
     case class Call[A, B, C](f: A => B, v: A, cont: B => Tramp[_, _, C]) extends Tramp[A, B, C]
@@ -108,7 +108,7 @@ class MyTrampolineTests extends FunSuite with Matchers {
     run_(t) should equal(33)
   }
 
-  test("with tail-call elimination of excess stack frames in the interpreter") {
+  ignore("with tail-call elimination of excess stack frames in the interpreter") {
     trait Tramp[+A, +B, C]
     case class Return[A](cont: () => A) extends Tramp[Nothing, Nothing, A]
     case class Call[A, B, C](f: A => B, v: A, cont: B => Tramp[_, _, C]) extends Tramp[A, B, C]
@@ -138,7 +138,86 @@ class MyTrampolineTests extends FunSuite with Matchers {
     run_(t) should equal(33)
   }
 
-  // TODO
-  //   what's the proper formulation of trampolining?
+  test("a simpler formulation? removing the legacy function calls") {
+    trait Tramp[+A, B]
+    case class Return[A](cont: () => A) extends Tramp[Nothing, A]
+    case class Call[A, B](v: A, cont: A => Tramp[_, B]) extends Tramp[A, B]
+
+    import scala.util.control.TailCalls._
+    def runtail[A, B](t: Tramp[A, B]): TailRec[B] = {
+      t match {
+        case Return(cont) => done(cont())
+        case Call(v, cont) => tailcall(runtail(cont(v)))
+      }
+    }
+    def run_[A, B](t: Tramp[A, B]): B = runtail(t).result
+
+
+    val t = Call(2, (b: Int) =>
+      Call(f1(b), (c: Int) =>
+        Call(f1(c), (d: Int) =>
+          Call(f1(d), (e: Int) =>
+            Call(f1(e), (f: Int) =>
+              Call(f1(e), (g: Int) =>
+                Return(() => f1(e) + 1)
+              )
+            )
+          )
+        )
+      )
+    )
+    run_(t) should equal(33)
+  }
+
+  test("a simpler formulation? don't need the extra type parameter") {
+    trait Tramp[A]
+    case class Return[A](cont: () => A) extends Tramp[A]
+    case class Call[A, B](v: A, cont: A => Tramp[B]) extends Tramp[B] // A is only required to ascertain the type of the first Tramp and the type of the fn param are equivalent
+
+    import scala.util.control.TailCalls._
+    def runtail[A](t: Tramp[A]): TailRec[A] = {
+      t match {
+        case Return(cont) => done(cont())
+        case Call(v, cont) => tailcall(runtail(cont(v)))
+      }
+    }
+    def run_[A](t: Tramp[A]): A = runtail(t).result
+
+
+    val t = Call(2, (b: Int) =>
+      Call(f1(b), (c: Int) =>
+        Call(f1(c), (d: Int) =>
+          Call(f1(d), (e: Int) =>
+            Call(f1(e), (f: Int) =>
+              Call(f1(e), (g: Int) =>
+                Return(() => f1(e) + 1)
+              )
+            )
+          )
+        )
+      )
+    )
+    run_(t) should equal(33)
+  }
+
+  test("the proper implementation - from FP in Scala - but using the names I've used here already") {
+    sealed trait Tramp[A]
+    case class Return[A](v: A) extends Tramp[A]
+    case class Cont[A](cont: () => A) extends Tramp[A]
+    case class Call[A, B](a: Tramp[A], f: A => Tramp[B]) extends Tramp[B]
+
+    def flatMap[A, B](t: Tramp[A], f: A => Tramp[B]): Tramp[B] = Call(t, f)
+
+    @annotation.tailrec
+    def run[A, B, C](tramp: Tramp[A]): A = tramp match {
+      case Return(a) => a
+      case Cont(cont) => cont()
+      case Call(x: Tramp[B], f) => x match {
+        case Return(a) => run(f(a))
+        case Cont(cont) => run(f(cont()))
+        case Call(y: Tramp[C], g) => run(Call(y, (c: C) => Call(g(c), f)))
+      }
+    }
+  }
 
 }
